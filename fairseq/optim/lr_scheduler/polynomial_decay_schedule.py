@@ -87,3 +87,19 @@ class PolynomialDecayLRSchedule(FairseqLRScheduler):
             lr = lr_range * pct_remaining ** (self.power) + self.end_learning_rate
         self.optimizer.set_lr(lr)
         return self.optimizer.get_lr()
+
+    def reinit(self, total_num_update, num_updates):
+        # only enable this when set warmup_ratio
+        if self.cfg.warmup_ratio <= 0:
+            return
+        # re init this according to the real number of updates
+        self.total_num_update = total_num_update
+        self.warmup_updates = int(self.total_num_update * self.cfg.warmup_ratio)
+        if num_updates > 0:
+            self.warmup_factor = min(1.0, num_updates / float(self.warmup_updates))
+            self.step_update(num_updates)
+        else:
+            self.warmup_factor = 1.0 / self.warmup_updates
+            self.optimizer.set_lr(self.warmup_factor * self.lr)
+        print('Total steps {}, warmup steps {}, warmup_factor {}'.format(self.total_num_update, self.warmup_updates,
+                                                                         self.warmup_factor))
